@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <!-- Yellow Background Base -->
+  <rect x="0" y="0" width="465" height="465" fill="#FFE500" />
+  
+  <!-- Right Solid Black Edge Bar -->
+  <rect x="465" y="0" width="35" height="500" fill="#111111" />
+  
+  <!-- Bottom Solid Black Edge Bar -->
+  <rect x="0" y="465" width="500" height="35" fill="#111111" />
+
+  <!-- MEGA LUX -->
+  <text
+    x="38"
+    y="256"
+    fill="#111111"
+    font-family="'Outfit', 'Plus Jakarta Sans', 'Arial Black', sans-serif"
+    font-weight="900"
+    font-size="68"
+    letter-spacing="0.01em"
+  >MEGA LUX</text>
+
+  <!-- INTERNATIONAL -->
+  <text
+    x="38"
+    y="328"
+    fill="#111111"
+    font-family="'Barlow Condensed', 'DIN Alternate', 'Arial Narrow', 'Impact', sans-serif"
+    font-weight="800"
+    font-size="53"
+    letter-spacing="0.04em"
+    textLength="388"
+    lengthAdjust="spacingAndGlyphs"
+  >INTERNATIONAL</text>
+</svg>
