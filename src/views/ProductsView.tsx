@@ -14,6 +14,8 @@ import {
   Sparkles
 } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
+import { ProductCardSkeleton } from '../components/ProductCardSkeleton';
+import { CategoryCardSkeleton } from '../components/CategoryCardSkeleton';
 import { useCms } from '../context/CmsContext';
 import { Product } from '../types';
 import { resolveImageUrl } from '../services/cmsApi';
@@ -274,7 +276,14 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-          {dynamicCategoryCards.map((cat) => {
+          {loading && dynamicCategoryCards.length === 0 ? (
+            <>
+              <CategoryCardSkeleton />
+              <CategoryCardSkeleton />
+              <CategoryCardSkeleton />
+            </>
+          ) : (
+            dynamicCategoryCards.map((cat) => {
             const isSelected = selectedCategory === cat.id;
             return (
               <div
@@ -318,7 +327,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                 </div>
               </div>
             );
-          })}
+          }))}
         </div>
       </section>
 
@@ -462,10 +471,10 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
 
       {/* Products Grid */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {loading ? (
+        {loading && filteredProducts.length === 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="h-96 rounded-2xl bg-slate-100 animate-pulse border border-slate-200" />
+              <ProductCardSkeleton key={i} />
             ))}
           </div>
         ) : filteredProducts.length === 0 ? (

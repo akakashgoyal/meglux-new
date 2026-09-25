@@ -23,6 +23,7 @@ import { ConsultationModal } from './components/ConsultationModal';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { RFQDrawer } from './components/RFQDrawer';
 import { PrivacyTermsModal } from './views/PrivacyTermsModal';
+import { PageLoader } from './components/PageLoader';
 
 import { 
   APPROVALS_DOCUMENTS 
@@ -31,13 +32,30 @@ import { useCms } from './context/CmsContext';
 import { Product, Project, DocumentItem } from './types';
 
 export default function App() {
-  const { products: cmsProducts, projects: cmsProjects } = useCms();
+  const { products: cmsProducts, projects: cmsProjects, loading: cmsLoading } = useCms();
   const allProducts = cmsProducts;
   const allProjects = cmsProjects;
 
   // Navigation State
   const [currentTab, setCurrentTab] = useState<string>('home');
   const [initialProductCategory, setInitialProductCategory] = useState<string>('all');
+  const [isPageLoading, setIsPageLoading] = useState<boolean>(true);
+  const [loadingPageName, setLoadingPageName] = useState<string>('home');
+
+  // Initial mount loader: wait for CMS initial load with a smooth fallback
+  useEffect(() => {
+    if (!cmsLoading) {
+      const minTimer = setTimeout(() => {
+        setIsPageLoading(false);
+      }, 450);
+      return () => clearTimeout(minTimer);
+    } else {
+      const maxTimer = setTimeout(() => {
+        setIsPageLoading(false);
+      }, 1200);
+      return () => clearTimeout(maxTimer);
+    }
+  }, [cmsLoading]);
 
 
   // Modals & Interactive States
@@ -79,29 +97,34 @@ export default function App() {
       const searchParams = new URLSearchParams(window.location.search);
       const categoryParam = searchParams.get('category');
 
+      let nextTab: string | null = null;
       if (!pathname || pathname === 'home') {
-        setCurrentTab('home');
+        nextTab = 'home';
       } else if (pathname === 'products') {
-        setCurrentTab('products');
+        nextTab = 'products';
         if (categoryParam) {
           setInitialProductCategory(categoryParam);
         }
       } else if (pathname === 'projects' || pathname === 'gallery') {
-        setCurrentTab('projects');
+        nextTab = 'projects';
       } else if (pathname === 'careers' || pathname === 'jobs') {
-        setCurrentTab('careers');
+        nextTab = 'careers';
       } else if (pathname === 'contact' || pathname === 'location') {
-        setCurrentTab('contact');
+        nextTab = 'contact';
       } else if (pathname === 'trade-licence' || pathname === 'license' || pathname === 'licence') {
-        setCurrentTab('trade-licence');
+        nextTab = 'trade-licence';
       } else if (pathname === 'objectives' || pathname === 'quality') {
-        setCurrentTab('objectives');
+        nextTab = 'objectives';
       } else if (pathname === 'approvals') {
-        setCurrentTab('approvals');
+        nextTab = 'approvals';
       } else if (pathname === 'privacy-policy' || pathname === 'privacy') {
         setPrivacyTermsType('privacy');
       } else if (pathname === 'terms-conditions' || pathname === 'terms') {
         setPrivacyTermsType('terms');
+      }
+
+      if (nextTab) {
+        setCurrentTab(nextTab);
       }
     };
 
@@ -117,6 +140,13 @@ export default function App() {
 
   // Handle Tab Switch with clean URL
   const handleSelectTab = (tab: string, subCategory?: string) => {
+    if (tab !== currentTab) {
+      setLoadingPageName(tab);
+      setIsPageLoading(true);
+      setTimeout(() => {
+        setIsPageLoading(false);
+      }, 450);
+    }
     setCurrentTab(tab);
     let targetPath = tab === 'home' ? '/' : `/${tab}`;
     if (tab === 'products' && subCategory) {
@@ -355,6 +385,12 @@ www.megaluxintl.com
       <PrivacyTermsModal
         type={privacyTermsType}
         onClose={() => setPrivacyTermsType(null)}
+      />
+
+      {/* Global Page Transition & Initial Loader with Logo */}
+      <PageLoader 
+        isLoading={isPageLoading} 
+        pageName={loadingPageName} 
       />
     </div>
   );

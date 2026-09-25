@@ -15,6 +15,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { ProjectCard } from '../components/ProjectCard';
+import { ProjectCardSkeleton } from '../components/ProjectCardSkeleton';
 import { ClientsMarquee } from '../components/ClientsMarquee';
 import { Lightbox } from '../components/Lightbox';
 import { useCms } from '../context/CmsContext';
@@ -248,10 +249,10 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
             </p>
           </div>
 
-          {loading ? (
+          {loading && filteredProjects.length === 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="h-96 rounded-2xl bg-slate-100 animate-pulse border border-slate-200" />
+                <ProjectCardSkeleton key={i} />
               ))}
             </div>
           ) : filteredProjects.length === 0 ? (

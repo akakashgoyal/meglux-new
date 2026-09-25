@@ -24,9 +24,13 @@ import {
 import { 
   WHY_CHOOSE_MEGALUX, 
   PROJECT_PROCESS_STEPS, 
-  TRADE_LICENCE_DATA
+  TRADE_LICENCE_DATA,
+  PRODUCTS_DATA
 } from '../data/companyData';
 import { ProjectCard } from '../components/ProjectCard';
+import { ProjectCardSkeleton } from '../components/ProjectCardSkeleton';
+import { ServiceCardSkeleton } from '../components/ServiceCardSkeleton';
+import { CategoryCardSkeleton } from '../components/CategoryCardSkeleton';
 import { ClientsMarquee } from '../components/ClientsMarquee';
 import { TestimonialsSlider } from '../components/TestimonialsSlider';
 import { useCms } from '../context/CmsContext';
@@ -70,7 +74,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
     : cmsProducts.slice(0, 4);
 
   const [heroProductIndex, setHeroProductIndex] = useState(0);
-  const heroSpotlightProduct = cmsProducts.length > 0 ? cmsProducts[heroProductIndex % cmsProducts.length] : null;
+  const heroSpotlightProduct = cmsProducts.length > 0 
+    ? cmsProducts[heroProductIndex % cmsProducts.length] 
+    : (PRODUCTS_DATA[0] || null);
 
   // Dynamic categories mapped directly from CMS database categories
   const dynamicCoreCategories = useMemo(() => {
@@ -118,6 +124,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         const matchingCount = cmsProducts.filter(
           p => p.category === catKey || p.category === cat.slug || p.category === String(cat.id) || p.categoryName === cat.name
         ).length;
+        const defaultCount = s.includes('light') ? 7 : (s.includes('security') ? 5 : 4);
 
         return {
           id: catKey,
@@ -128,7 +135,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           image: resolvedImg,
           highlights: defaultHighlights,
           specBadge,
-          productCount: matchingCount || cat.products_count || 0
+          productCount: matchingCount || cat.products_count || defaultCount
         };
       });
     }
@@ -746,10 +753,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </button>
         </div>
 
-        {loading ? (
+        {loading && featuredProjects.length === 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-80 rounded-2xl bg-slate-100 animate-pulse border border-slate-200" />
+              <ProjectCardSkeleton key={i} />
             ))}
           </div>
         ) : featuredProjects.length > 0 ? (

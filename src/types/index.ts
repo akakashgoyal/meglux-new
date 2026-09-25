@@ -106,6 +106,8 @@ export interface Project {
   consultant: string; // Clearly structured placeholder
   contractor?: string;
   completionYear?: string;
+  date?: string;
+  stats?: { label: string; value: string; }[];
   featured?: boolean;
 }
 

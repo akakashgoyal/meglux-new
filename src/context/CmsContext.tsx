@@ -33,6 +33,7 @@ import {
   resolveImageUrl
 } from '../services/cmsApi';
 import { DEFAULT_CMS_SETTINGS } from '../data/cmsFallbacks';
+import { PRODUCTS_DATA, PROJECTS_DATA } from '../data/companyData';
 
 interface CmsContextType {
   settings: CmsSettings;
@@ -68,9 +69,9 @@ export const CmsProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [settings, setSettings] = useState<CmsSettings>(DEFAULT_CMS_SETTINGS);
   const [categories, setCategories] = useState<CmsCategory[]>([]);
   const [rawProducts, setRawProducts] = useState<CmsProduct[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(PRODUCTS_DATA);
   const [rawProjects, setRawProjects] = useState<CmsProject[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>(PROJECTS_DATA);
   const [rawGallery, setRawGallery] = useState<CmsGalleryItem[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [clients, setClients] = useState<CmsClient[]>([]);
@@ -149,27 +150,33 @@ export const CmsProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       // 3. Products
-      if (cmsProds && Array.isArray(cmsProds)) {
+      if (cmsProds && Array.isArray(cmsProds) && cmsProds.length > 0) {
         setRawProducts(cmsProds);
         liveResponsesCount++;
         const activeProds = cmsProds.filter(p => p.is_active);
         const mappedProds = activeProds.map(mapCmsProductToProduct);
-        setProducts(mappedProds);
+        // Merge: Live CMS products are prioritized, and baseline catalogue supplements all 3 disciplines
+        const liveSlugs = new Set(mappedProds.map(p => (p.slug || p.id).toLowerCase()));
+        const liveNames = new Set(mappedProds.map(p => p.name.toLowerCase()));
+        const complementary = PRODUCTS_DATA.filter(p => !liveSlugs.has((p.slug || p.id).toLowerCase()) && !liveNames.has(p.name.toLowerCase()));
+        setProducts([...mappedProds, ...complementary]);
       } else {
         setRawProducts([]);
-        setProducts([]);
+        setProducts(PRODUCTS_DATA);
       }
 
       // 4. Projects
-      if (cmsProjs && Array.isArray(cmsProjs)) {
+      if (cmsProjs && Array.isArray(cmsProjs) && cmsProjs.length > 0) {
         setRawProjects(cmsProjs);
         liveResponsesCount++;
         const activeProjs = cmsProjs.filter(p => p.is_active);
         const mappedProjs = activeProjs.map(mapCmsProjectToProject);
-        setProjects(mappedProjs);
+        const liveSlugs = new Set(mappedProjs.map(p => (p.slug || p.id).toLowerCase()));
+        const complementary = PROJECTS_DATA.filter(p => !liveSlugs.has((p.slug || p.id).toLowerCase()));
+        setProjects([...mappedProjs, ...complementary]);
       } else {
         setRawProjects([]);
-        setProjects([]);
+        setProjects(PROJECTS_DATA);
       }
 
       // 5. Gallery

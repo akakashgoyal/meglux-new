@@ -18,6 +18,14 @@ import {
 } from 'lucide-react';
 import { useCms } from '../context/CmsContext';
 import { submitProjectEnquiry } from '../services/cmsApi';
+import { 
+  validatePhoneNumber, 
+  validateEmail, 
+  validateFullName, 
+  validateMessage, 
+  validateAttachment,
+  MAX_FILE_SIZE_BYTES 
+} from '../utils/formValidation';
 
 interface ConsultationModalProps {
   isOpen: boolean;
@@ -34,7 +42,6 @@ const ALLOWED_CATEGORIES = [
 ] as const;
 
 const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'dwg'];
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 function normalizeCategory(cat?: string): string {
   if (!cat || cat === 'all') return 'Lighting';
@@ -95,13 +102,6 @@ export const ConsultationModal: React.FC<ConsultationModalProps> = ({
 
   if (!isOpen) return null;
 
-  const validateEmail = (val: string): boolean => {
-    const trimmed = val.trim();
-    if (!trimmed) return false;
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    return emailRegex.test(trimmed);
-  };
-
   const handleFileChange = (file: File | null) => {
     if (!file) {
       setFormData(prev => ({ ...prev, attachment: null }));
@@ -109,16 +109,9 @@ export const ConsultationModal: React.FC<ConsultationModalProps> = ({
       return;
     }
 
-    const ext = file.name.split('.').pop()?.toLowerCase() || '';
-    if (!ALLOWED_EXTENSIONS.includes(ext)) {
-      setFileError(`Unsupported format for "${file.name}". Supported formats: PDF, JPG, JPEG, PNG, DWG (max 10MB).`);
-      setFormData(prev => ({ ...prev, attachment: null }));
-      return;
-    }
-
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
-      setFileError(`File "${file.name}" (${sizeMb} MB) exceeds the maximum 10 MB limit.`);
+    const validation = validateAttachment(file, ALLOWED_EXTENSIONS);
+    if (!validation.isValid) {
+      setFileError(validation.error);
       setFormData(prev => ({ ...prev, attachment: null }));
       return;
     }
@@ -140,6 +133,27 @@ export const ConsultationModal: React.FC<ConsultationModalProps> = ({
     setFileError(null);
   };
 
+  const validateField = (field: string, value: string) => {
+    let err: string | null = null;
+    if (field === 'full_name') {
+      const res = validateFullName(value, true);
+      err = res.error;
+    } else if (field === 'email') {
+      const res = validateEmail(value, true);
+      err = res.error;
+    } else if (field === 'phone') {
+      if (value.trim()) {
+        const res = validatePhoneNumber(value, false);
+        err = res.error;
+      }
+    } else if (field === 'message') {
+      const res = validateMessage(value, 10, true);
+      err = res.error;
+    }
+    setFieldErrors(prev => ({ ...prev, [field]: err || '' }));
+    return !err;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
@@ -147,22 +161,30 @@ export const ConsultationModal: React.FC<ConsultationModalProps> = ({
     setGeneralError(null);
     const errors: Record<string, string> = {};
 
-    if (!formData.full_name.trim()) {
-      errors.full_name = 'Full name is required.';
+    const nameCheck = validateFullName(formData.full_name, true);
+    if (!nameCheck.isValid && nameCheck.error) {
+      errors.full_name = nameCheck.error;
     }
 
-    if (!formData.email.trim()) {
-      errors.email = 'Corporate email is required.';
-    } else if (!validateEmail(formData.email)) {
-      errors.email = 'Please enter a valid corporate email address (e.g. name@company.com).';
+    const emailCheck = validateEmail(formData.email, true);
+    if (!emailCheck.isValid && emailCheck.error) {
+      errors.email = emailCheck.error;
+    }
+
+    if (formData.phone.trim()) {
+      const phoneCheck = validatePhoneNumber(formData.phone, false);
+      if (!phoneCheck.isValid && phoneCheck.error) {
+        errors.phone = phoneCheck.error;
+      }
     }
 
     if (!formData.product_category || !ALLOWED_CATEGORIES.includes(formData.product_category as any)) {
       errors.product_category = 'Please select a valid product category.';
     }
 
-    if (!formData.message.trim()) {
-      errors.message = 'Message & technical specifications are required.';
+    const messageCheck = validateMessage(formData.message, 10, true);
+    if (!messageCheck.isValid && messageCheck.error) {
+      errors.message = messageCheck.error;
     }
 
     if (fileError) {
@@ -171,7 +193,7 @@ export const ConsultationModal: React.FC<ConsultationModalProps> = ({
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
-      setGeneralError('Unable to submit your enquiry at the moment. Please check the highlighted fields and try again.');
+      setGeneralError('Please check highlighted fields and correct any errors before submitting.');
       return;
     }
 
@@ -355,22 +377,29 @@ export const ConsultationModal: React.FC<ConsultationModalProps> = ({
                 <div className="space-y-1.5">
                   <label className="block text-slate-800 font-bold">Full Name *</label>
                   <div className="relative">
-                    <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <User className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 ${fieldErrors.full_name ? 'text-rose-500' : 'text-slate-400'}`} />
                     <input 
                       type="text"
                       required
                       placeholder="e.g. Eng. / Mr. Full Name"
                       value={formData.full_name}
                       onChange={(e) => {
-                        setFormData({ ...formData, full_name: e.target.value });
-                        if (fieldErrors.full_name) {
-                          setFieldErrors(prev => ({ ...prev, full_name: '' }));
-                        }
+                        const val = e.target.value;
+                        setFormData(prev => ({ ...prev, full_name: val }));
+                        validateField('full_name', val);
                       }}
-                      className={`w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-50 border focus:border-slate-900 text-slate-900 outline-none transition-colors font-medium ${
-                        fieldErrors.full_name ? 'border-rose-400 bg-rose-50/40' : 'border-slate-200'
+                      onBlur={(e) => validateField('full_name', e.target.value)}
+                      className={`w-full pl-10 pr-10 py-2.5 rounded-xl outline-none transition-colors font-medium ${
+                        fieldErrors.full_name 
+                          ? 'border border-rose-400 bg-rose-50/40 text-rose-950 focus:border-rose-600' 
+                          : formData.full_name.trim().length >= 2
+                          ? 'border border-emerald-400/60 bg-emerald-50/20 text-slate-900 focus:border-emerald-600'
+                          : 'border border-slate-200 bg-slate-50 focus:border-slate-900 text-slate-900'
                       }`}
                     />
+                    {formData.full_name.trim().length >= 2 && !fieldErrors.full_name && (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    )}
                   </div>
                   {fieldErrors.full_name && (
                     <p className="text-[11px] text-rose-600 font-medium flex items-center gap-1">
@@ -407,20 +436,20 @@ export const ConsultationModal: React.FC<ConsultationModalProps> = ({
                       placeholder="name@company.com"
                       value={formData.email}
                       onChange={(e) => {
-                        setFormData({ ...formData, email: e.target.value });
-                        if (fieldErrors.email) {
-                          setFieldErrors(prev => ({ ...prev, email: '' }));
-                        }
+                        const val = e.target.value;
+                        setFormData(prev => ({ ...prev, email: val }));
+                        validateField('email', val);
                       }}
+                      onBlur={(e) => validateField('email', e.target.value)}
                       className={`w-full pl-10 pr-10 py-2.5 rounded-xl outline-none transition-colors font-medium ${
                         fieldErrors.email 
                           ? 'bg-rose-50/40 border border-rose-400 text-rose-950 focus:border-rose-600' 
-                          : formData.email && validateEmail(formData.email)
+                          : formData.email && validateEmail(formData.email, true).isValid
                           ? 'bg-emerald-50/20 border border-emerald-400/60 focus:border-emerald-600 text-slate-900'
                           : 'bg-slate-50 border border-slate-200 focus:border-slate-900 text-slate-900'
                       }`}
                     />
-                    {formData.email && validateEmail(formData.email) && !fieldErrors.email && (
+                    {formData.email && validateEmail(formData.email, true).isValid && !fieldErrors.email && (
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     )}
                   </div>
@@ -431,19 +460,38 @@ export const ConsultationModal: React.FC<ConsultationModalProps> = ({
                   )}
                 </div>
 
-                {/* Phone / Mobile (Optional) */}
+                {/* Phone / Mobile */}
                 <div className="space-y-1.5">
                   <label className="block text-slate-800 font-bold">Phone / Mobile</label>
                   <div className="relative">
-                    <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <Phone className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 ${fieldErrors.phone ? 'text-rose-500' : 'text-slate-400'}`} />
                     <input 
                       type="tel"
                       placeholder="+971 50 123 4567"
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-slate-900 text-slate-900 outline-none transition-colors font-medium"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormData(prev => ({ ...prev, phone: val }));
+                        validateField('phone', val);
+                      }}
+                      onBlur={(e) => validateField('phone', e.target.value)}
+                      className={`w-full pl-10 pr-10 py-2.5 rounded-xl outline-none transition-colors font-medium ${
+                        fieldErrors.phone
+                          ? 'bg-rose-50/40 border border-rose-400 text-rose-950 focus:border-rose-600'
+                          : formData.phone.trim() && validatePhoneNumber(formData.phone, false).isValid
+                          ? 'bg-emerald-50/20 border border-emerald-400/60 focus:border-emerald-600 text-slate-900'
+                          : 'bg-slate-50 border border-slate-200 focus:border-slate-900 text-slate-900'
+                      }`}
                     />
+                    {formData.phone.trim() && validatePhoneNumber(formData.phone, false).isValid && !fieldErrors.phone && (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    )}
                   </div>
+                  {fieldErrors.phone && (
+                    <p className="text-[11px] text-rose-600 font-medium flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> {fieldErrors.phone}
+                    </p>
+                  )}
                 </div>
 
                 {/* Project Location (Optional) */}
@@ -501,13 +549,13 @@ export const ConsultationModal: React.FC<ConsultationModalProps> = ({
                   placeholder="Detail your system requirements, quantities, crash test ratings, photometrics, or submittal deadlines..."
                   value={formData.message}
                   onChange={(e) => {
-                    setFormData({ ...formData, message: e.target.value });
-                    if (fieldErrors.message) {
-                      setFieldErrors(prev => ({ ...prev, message: '' }));
-                    }
+                    const val = e.target.value;
+                    setFormData(prev => ({ ...prev, message: val }));
+                    validateField('message', val);
                   }}
+                  onBlur={(e) => validateField('message', e.target.value)}
                   className={`w-full p-3.5 rounded-xl bg-slate-50 border focus:border-slate-900 text-slate-900 outline-none transition-colors font-medium ${
-                    fieldErrors.message ? 'border-rose-400 bg-rose-50/40' : 'border-slate-200'
+                    fieldErrors.message ? 'border-rose-400 bg-rose-50/40 text-rose-950 focus:border-rose-600' : 'border-slate-200'
                   }`}
                 />
                 {fieldErrors.message && (
@@ -517,7 +565,7 @@ export const ConsultationModal: React.FC<ConsultationModalProps> = ({
                 )}
               </div>
 
-              {/* Optional Attachment (PDF, JPG, JPEG, PNG, DWG; max 10MB) */}
+              {/* Optional Attachment (PDF, JPG, JPEG, PNG, DWG; max 20MB) */}
               <div className="space-y-2 text-xs">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                   <label className="block text-slate-800 font-bold">
@@ -528,7 +576,7 @@ export const ConsultationModal: React.FC<ConsultationModalProps> = ({
                     <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-bold">JPG</span>
                     <span className="px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 font-bold">PNG</span>
                     <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-bold">DWG</span>
-                    <span className="text-slate-400">Max 10MB</span>
+                    <span className="px-1.5 py-0.5 rounded bg-[#FFE500]/30 text-black font-bold">Max 20MB</span>
                   </div>
                 </div>
 
@@ -607,7 +655,7 @@ export const ConsultationModal: React.FC<ConsultationModalProps> = ({
                       <Upload className="w-5 h-5 text-slate-800" />
                       <span className="font-bold text-slate-900 text-xs">Drag and drop document or click to browse</span>
                       <span className="text-[11px] text-slate-600 font-medium">
-                        Supported: <strong className="text-slate-900">.pdf</strong>, <strong className="text-slate-900">.jpg</strong>, <strong className="text-slate-900">.png</strong>, <strong className="text-slate-900">.dwg</strong> (max 10MB)
+                        Supported: <strong className="text-slate-900">.pdf</strong>, <strong className="text-slate-900">.jpg</strong>, <strong className="text-slate-900">.png</strong>, <strong className="text-slate-900">.dwg</strong> (max 20MB)
                       </span>
                     </div>
                   </div>

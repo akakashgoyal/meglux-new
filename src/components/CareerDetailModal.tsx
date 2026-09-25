@@ -17,6 +17,12 @@ import {
 } from 'lucide-react';
 import { CmsCareer } from '../types';
 import { parseStringOrArray, stripHtml, submitCareerApplication } from '../services/cmsApi';
+import { 
+  validatePhoneNumber, 
+  validateEmail, 
+  validateFullName, 
+  MAX_FILE_SIZE_BYTES 
+} from '../utils/formValidation';
 
 interface CareerDetailModalProps {
   career: CmsCareer | null;
@@ -34,6 +40,11 @@ export const CareerDetailModal: React.FC<CareerDetailModalProps> = ({ career, on
   const [fileError, setFileError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Field validation flags
+  const [nameTouched, setNameTouched] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionSuccess, setSubmissionSuccess] = useState<boolean>(false);
@@ -55,17 +66,16 @@ export const CareerDetailModal: React.FC<CareerDetailModalProps> = ({ career, on
       setResumeFile(null);
       return;
     }
-    const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
-    if (file.size > MAX_SIZE_BYTES) {
+    if (file.size > MAX_FILE_SIZE_BYTES) {
       const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
-      setFileError(`Resume size (${sizeMb} MB) exceeds 10 MB limit.`);
+      setFileError(`Resume size (${sizeMb} MB) exceeds 20 MB limit. Please choose a file under 20 MB.`);
       setResumeFile(null);
       return;
     }
     const allowed = ['.pdf', '.doc', '.docx'];
     const nameLower = file.name.toLowerCase();
     if (!allowed.some(ext => nameLower.endsWith(ext))) {
-      setFileError('Invalid format. Only PDF, DOC, or DOCX resume files are supported.');
+      setFileError('Invalid format. Only PDF, DOC, or DOCX resume files are supported (max 20 MB).');
       setResumeFile(null);
       return;
     }
@@ -77,12 +87,31 @@ export const CareerDetailModal: React.FC<CareerDetailModalProps> = ({ career, on
     setApiError(null);
     setFieldErrors({});
 
-    if (!applicantName.trim() || !applicantEmail.trim()) {
-      return;
+    let hasClientError = false;
+    const nameCheck = validateFullName(applicantName, true);
+    if (!nameCheck.isValid) {
+      setNameTouched(true);
+      hasClientError = true;
+    }
+
+    const emailCheck = validateEmail(applicantEmail, true);
+    if (!emailCheck.isValid) {
+      setEmailTouched(true);
+      hasClientError = true;
+    }
+
+    const phoneCheck = validatePhoneNumber(applicantPhone, true);
+    if (!phoneCheck.isValid) {
+      setPhoneTouched(true);
+      hasClientError = true;
     }
 
     if (!resumeFile) {
-      setFileError('Resume / CV is required (PDF, DOC, or DOCX format, max 10 MB).');
+      setFileError('Resume / CV is required (PDF, DOC, or DOCX format, max 20 MB).');
+      hasClientError = true;
+    }
+
+    if (hasClientError) {
       return;
     }
 
@@ -98,7 +127,7 @@ export const CareerDetailModal: React.FC<CareerDetailModalProps> = ({ career, on
         total_experience: applicantExperience.trim() || undefined,
         notice_period: applicantNotice.trim() || undefined,
         professional_summary: applicantNote.trim() || undefined,
-        resume: resumeFile
+        resume: resumeFile!
       });
 
       if (result.success) {
@@ -114,6 +143,9 @@ export const CareerDetailModal: React.FC<CareerDetailModalProps> = ({ career, on
         setApplicantNote('');
         setResumeFile(null);
         setFileError(null);
+        setNameTouched(false);
+        setEmailTouched(false);
+        setPhoneTouched(false);
         setFieldErrors({});
         if (fileInputRef.current) fileInputRef.current.value = '';
       } else {
@@ -329,41 +361,119 @@ export const CareerDetailModal: React.FC<CareerDetailModalProps> = ({ career, on
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       Full Name *
                     </label>
-                    <input
-                      type="text"
-                      required
-                      value={applicantName}
-                      onChange={(e) => setApplicantName(e.target.value)}
-                      placeholder="e.g. John Doe"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-black outline-none"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        value={applicantName}
+                        onChange={(e) => {
+                          setApplicantName(e.target.value);
+                          if (!nameTouched) setNameTouched(true);
+                        }}
+                        onBlur={() => setNameTouched(true)}
+                        placeholder="e.g. John Doe"
+                        className={`w-full px-3.5 pr-10 py-2.5 rounded-xl border text-xs focus:ring-2 outline-none transition-colors ${
+                          (nameTouched && !validateFullName(applicantName, true).isValid) || fieldErrors.full_name
+                            ? 'border-rose-400 bg-rose-50/40 focus:ring-rose-400'
+                            : applicantName.trim().length >= 2
+                            ? 'border-emerald-400/60 bg-emerald-50/20 focus:ring-emerald-500'
+                            : 'border-slate-200 focus:ring-black'
+                        }`}
+                      />
+                      {applicantName.trim().length >= 2 && validateFullName(applicantName, true).isValid && (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      )}
+                    </div>
+                    {nameTouched && !validateFullName(applicantName, true).isValid && (
+                      <p className="text-[11px] text-rose-600 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> {validateFullName(applicantName, true).error}
+                      </p>
+                    )}
+                    {fieldErrors.full_name && (
+                      <p className="text-[11px] text-rose-600 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> {fieldErrors.full_name.join(', ')}
+                      </p>
+                    )}
                   </div>
+
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       Email Address *
                     </label>
-                    <input
-                      type="email"
-                      required
-                      value={applicantEmail}
-                      onChange={(e) => setApplicantEmail(e.target.value)}
-                      placeholder="e.g. name@domain.com"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-black outline-none"
-                    />
+                    <div className="relative">
+                      <input
+                        type="email"
+                        required
+                        value={applicantEmail}
+                        onChange={(e) => {
+                          setApplicantEmail(e.target.value);
+                          if (!emailTouched) setEmailTouched(true);
+                        }}
+                        onBlur={() => setEmailTouched(true)}
+                        placeholder="e.g. name@domain.com"
+                        className={`w-full px-3.5 pr-10 py-2.5 rounded-xl border text-xs focus:ring-2 outline-none transition-colors ${
+                          (emailTouched && !validateEmail(applicantEmail, true).isValid) || fieldErrors.email
+                            ? 'border-rose-400 bg-rose-50/40 focus:ring-rose-400'
+                            : applicantEmail && validateEmail(applicantEmail, true).isValid
+                            ? 'border-emerald-400/60 bg-emerald-50/20 focus:ring-emerald-500'
+                            : 'border-slate-200 focus:ring-black'
+                        }`}
+                      />
+                      {applicantEmail && validateEmail(applicantEmail, true).isValid && (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      )}
+                    </div>
+                    {emailTouched && !validateEmail(applicantEmail, true).isValid && (
+                      <p className="text-[11px] text-rose-600 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> {validateEmail(applicantEmail, true).error}
+                      </p>
+                    )}
+                    {fieldErrors.email && (
+                      <p className="text-[11px] text-rose-600 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> {fieldErrors.email.join(', ')}
+                      </p>
+                    )}
                   </div>
+
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       Contact Phone (UAE / GCC) *
                     </label>
-                    <input
-                      type="tel"
-                      required
-                      value={applicantPhone}
-                      onChange={(e) => setApplicantPhone(e.target.value)}
-                      placeholder="+971 50 123 4567"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-black outline-none"
-                    />
+                    <div className="relative">
+                      <input
+                        type="tel"
+                        required
+                        value={applicantPhone}
+                        onChange={(e) => {
+                          setApplicantPhone(e.target.value);
+                          if (!phoneTouched) setPhoneTouched(true);
+                        }}
+                        onBlur={() => setPhoneTouched(true)}
+                        placeholder="+971 50 123 4567"
+                        className={`w-full px-3.5 pr-10 py-2.5 rounded-xl border text-xs focus:ring-2 outline-none transition-colors ${
+                          (phoneTouched && !validatePhoneNumber(applicantPhone, true).isValid) || fieldErrors.mobile_phone
+                            ? 'border-rose-400 bg-rose-50/40 focus:ring-rose-400'
+                            : applicantPhone && validatePhoneNumber(applicantPhone, true).isValid
+                            ? 'border-emerald-400/60 bg-emerald-50/20 focus:ring-emerald-500'
+                            : 'border-slate-200 focus:ring-black'
+                        }`}
+                      />
+                      {applicantPhone && validatePhoneNumber(applicantPhone, true).isValid && (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      )}
+                    </div>
+                    {phoneTouched && !validatePhoneNumber(applicantPhone, true).isValid && (
+                      <p className="text-[11px] text-rose-600 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> {validatePhoneNumber(applicantPhone, true).error}
+                      </p>
+                    )}
+                    {fieldErrors.mobile_phone && (
+                      <p className="text-[11px] text-rose-600 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> {fieldErrors.mobile_phone.join(', ')}
+                      </p>
+                    )}
                   </div>
+
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       Total Experience *
@@ -418,7 +528,7 @@ export const CareerDetailModal: React.FC<CareerDetailModalProps> = ({ career, on
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-bold text-slate-700">
-                      Resume / CV (PDF, DOC, DOCX - Max 10 MB) *
+                      Resume / CV (PDF, DOC, DOCX - Max 20 MB) *
                     </label>
                   </div>
 
@@ -458,7 +568,7 @@ export const CareerDetailModal: React.FC<CareerDetailModalProps> = ({ career, on
                           Click to upload or drag & drop Resume / CV
                         </span>
                         <span className="text-[10px] text-slate-500">
-                          PDF, DOC, DOCX up to 10 MB
+                          PDF, DOC, DOCX up to 20 MB
                         </span>
                       </div>
                     </div>
