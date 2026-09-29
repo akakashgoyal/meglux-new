@@ -33,7 +33,6 @@ import {
   resolveImageUrl
 } from '../services/cmsApi';
 import { DEFAULT_CMS_SETTINGS } from '../data/cmsFallbacks';
-import { PRODUCTS_DATA } from '../data/companyData';
 
 interface CmsContextType {
   settings: CmsSettings;
@@ -69,7 +68,7 @@ export const CmsProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [settings, setSettings] = useState<CmsSettings>(DEFAULT_CMS_SETTINGS);
   const [categories, setCategories] = useState<CmsCategory[]>([]);
   const [rawProducts, setRawProducts] = useState<CmsProduct[]>([]);
-  const [products, setProducts] = useState<Product[]>(PRODUCTS_DATA);
+  const [products, setProducts] = useState<Product[]>([]);
   const [rawProjects, setRawProjects] = useState<CmsProject[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [rawGallery, setRawGallery] = useState<CmsGalleryItem[]>([]);
@@ -149,20 +148,16 @@ export const CmsProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         liveResponsesCount++;
       }
 
-      // 3. Products
+      // 3. Products (Only live dynamic CMS products, no static data)
       if (cmsProds && Array.isArray(cmsProds) && cmsProds.length > 0) {
         setRawProducts(cmsProds);
         liveResponsesCount++;
         const activeProds = cmsProds.filter(p => p.is_active);
         const mappedProds = activeProds.map(mapCmsProductToProduct);
-        // Merge: Live CMS products are prioritized, and baseline catalogue supplements all 3 disciplines
-        const liveSlugs = new Set(mappedProds.map(p => (p.slug || p.id).toLowerCase()));
-        const liveNames = new Set(mappedProds.map(p => p.name.toLowerCase()));
-        const complementary = PRODUCTS_DATA.filter(p => !liveSlugs.has((p.slug || p.id).toLowerCase()) && !liveNames.has(p.name.toLowerCase()));
-        setProducts([...mappedProds, ...complementary]);
+        setProducts(mappedProds);
       } else {
         setRawProducts([]);
-        setProducts(PRODUCTS_DATA);
+        setProducts([]);
       }
 
       // 4. Projects (Only live dynamic CMS projects, no static data)

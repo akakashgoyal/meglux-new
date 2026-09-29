@@ -320,13 +320,6 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent group-hover:from-slate-950/90 transition-all" />
 
-                  {/* Category Pill */}
-                  <div className="absolute top-4 left-4 z-10">
-                    <span className="px-3 py-1 rounded-md text-[11px] font-black bg-[#FFE500] text-black uppercase tracking-wider font-mono shadow-xs border border-black/10">
-                      {item.categoryLabel}
-                    </span>
-                  </div>
-
                   {/* Lightbox Quick View Icon */}
                   <div className="absolute top-4 right-4 z-10 w-9 h-9 rounded-xl bg-white/90 backdrop-blur-md text-slate-900 flex items-center justify-center border border-slate-200 opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100 shadow-md">
                     <Maximize2 className="w-4 h-4" />

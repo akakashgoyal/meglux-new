@@ -24,8 +24,7 @@ import {
 import { 
   WHY_CHOOSE_MEGALUX, 
   PROJECT_PROCESS_STEPS, 
-  TRADE_LICENCE_DATA,
-  PRODUCTS_DATA
+  TRADE_LICENCE_DATA
 } from '../data/companyData';
 import { ProjectCard } from '../components/ProjectCard';
 import { ProjectCardSkeleton } from '../components/ProjectCardSkeleton';
@@ -76,7 +75,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [heroProductIndex, setHeroProductIndex] = useState(0);
   const heroSpotlightProduct = cmsProducts.length > 0 
     ? cmsProducts[heroProductIndex % cmsProducts.length] 
-    : (PRODUCTS_DATA[0] || null);
+    : null;
 
   // Dynamic categories mapped directly from CMS database categories
   const dynamicCoreCategories = useMemo(() => {
