@@ -33,7 +33,7 @@ import {
   resolveImageUrl
 } from '../services/cmsApi';
 import { DEFAULT_CMS_SETTINGS } from '../data/cmsFallbacks';
-import { PRODUCTS_DATA, PROJECTS_DATA } from '../data/companyData';
+import { PRODUCTS_DATA } from '../data/companyData';
 
 interface CmsContextType {
   settings: CmsSettings;
@@ -71,7 +71,7 @@ export const CmsProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [rawProducts, setRawProducts] = useState<CmsProduct[]>([]);
   const [products, setProducts] = useState<Product[]>(PRODUCTS_DATA);
   const [rawProjects, setRawProjects] = useState<CmsProject[]>([]);
-  const [projects, setProjects] = useState<Project[]>(PROJECTS_DATA);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [rawGallery, setRawGallery] = useState<CmsGalleryItem[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [clients, setClients] = useState<CmsClient[]>([]);
@@ -165,18 +165,16 @@ export const CmsProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setProducts(PRODUCTS_DATA);
       }
 
-      // 4. Projects
+      // 4. Projects (Only live dynamic CMS projects, no static data)
       if (cmsProjs && Array.isArray(cmsProjs) && cmsProjs.length > 0) {
         setRawProjects(cmsProjs);
         liveResponsesCount++;
         const activeProjs = cmsProjs.filter(p => p.is_active);
         const mappedProjs = activeProjs.map(mapCmsProjectToProject);
-        const liveSlugs = new Set(mappedProjs.map(p => (p.slug || p.id).toLowerCase()));
-        const complementary = PROJECTS_DATA.filter(p => !liveSlugs.has((p.slug || p.id).toLowerCase()));
-        setProjects([...mappedProjs, ...complementary]);
+        setProjects(mappedProjs);
       } else {
         setRawProjects([]);
-        setProjects(PROJECTS_DATA);
+        setProjects([]);
       }
 
       // 5. Gallery
